@@ -134,19 +134,21 @@ def compute_arrival_odds(
     max_proba = 0.0
     countdown = empire.countdown
 
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=128)
     def dfs(planet, day, autonomy, n_bounty):
         nonlocal max_proba
         if day > countdown:
             return 0.0
 
+        success = 1.0
+
         if planet == falcon.arrival:
-            # Compute proba how many BH I have encountered
+            # Compute success proba given how many BH encountered
             path_proba = 1 - sum(
                 [(captured_proba) * (1 - captured_proba) ** i for i in range(n_bounty)]
             )
             max_proba = max(max_proba, path_proba)
-            return path_proba
+            return
 
         # Encounter a bounty hunter !
         if day in empire.bounty_hunters and empire.bounty_hunters[day] == planet:
