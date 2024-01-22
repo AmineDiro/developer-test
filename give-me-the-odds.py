@@ -13,10 +13,10 @@ import os
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from heapq import heappop, heappush
 from pprint import pprint
-from turtle import distance
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Tuple
 
 
 @dataclass
@@ -28,7 +28,7 @@ class BountyHunter:
 @dataclass
 class Empire:
     countdown: int
-    bounty_hunters: List[BountyHunter]
+    bounty_hunters: Dict[int, str]
 
 
 def read_empire_from_json(file_path) -> Empire:
@@ -36,24 +36,22 @@ def read_empire_from_json(file_path) -> Empire:
         json_data = json.load(file)
     countdown = json_data["countdown"]
     bounty_hunters_data = json_data["bounty_hunters"]
-    bounty_hunters = [
-        BountyHunter(**hunter_data) for hunter_data in bounty_hunters_data
-    ]
+    bounty_hunters = {bh["day"]: bh["planet"] for bh in bounty_hunters_data}
     return Empire(countdown=countdown, bounty_hunters=bounty_hunters)
 
 
-class MillenniumFalcon:
-    def __init__(self, autonomy, departure, arrival, routes_db):
-        self.autonomy: int = autonomy
-        self.departure: str = departure
-        self.arrival: str = arrival
-        self.routes_db: sqlite3.Connection = routes_db
-
+class GalaxyMap:
+    def __init__(self, db_path: str):
+        self.routes_db: sqlite3.Connection = self.connect(db_path)
         # TODO: Define route struct
         self.all_routes: List[Any] = self.get_routes()
         self.planets: Set[str] = self.get_planets()
-
         self.adj = self.build_adj()
+
+    # TODO : handle  exceptions
+    def connect(self, db_path) -> sqlite3.Connection:
+        assert os.path.exists(db_path)
+        return sqlite3.connect(db_path)
 
     def get_routes(self):
         return list(self.routes_db.execute("SELECT * FROM routes;"))
@@ -71,6 +69,16 @@ class MillenniumFalcon:
             adj[dst_planet].append((cost, src_planet))
 
         return adj
+
+    def get_neighbors(self, planet):
+        return self.adj[planet]
+
+
+@dataclass
+class MillenniumFalcon:
+    autonomy: int
+    departure: str
+    arrival: str
 
     def get_shortest_path(self) -> int:
         """djikstra's shortest path algo"""
@@ -100,31 +108,61 @@ class MillenniumFalcon:
         return costs[self.arrival]
 
 
-def read_falcon_from_json(file_path) -> MillenniumFalcon:
+def read_falcon_from_json(file_path) -> Tuple[MillenniumFalcon, GalaxyMap]:
     with open(file_path, "r") as file:
         json_data = json.load(file)
 
     db_path = os.path.join(os.path.dirname(file_path), json_data["routes_db"])
-    assert os.path.exists(db_path)
-    conn = sqlite3.connect(db_path)
 
-    return MillenniumFalcon(
+    map = GalaxyMap(db_path)
+
+    falcon = MillenniumFalcon(
         autonomy=json_data["autonomy"],
         departure=json_data["departure"],
         arrival=json_data["arrival"],
-        routes_db=conn,
     )
+    return falcon, map
 
 
-def compute_odds(falcon: MillenniumFalcon, empire: Empire) -> float:
-    # Run djikstra to get the minium travel days
-    # (not taking into account bountyhunters)
-    minimum_travel_days = falcon.get_shortest_path()
-    refuel_days = max(0, minimum_travel_days - falcon.autonomy)
+def compute_arrival_odds(
+    falcon: MillenniumFalcon,
+    empire: Empire,
+    map: GalaxyMap,
+    captured_proba: float = 0.1,
+) -> float:
+    start_autonomy = falcon.autonomy
+    max_proba = 0.0
+    countdown = empire.countdown
 
-    # if you can't make it in time even with travel return 0
-    if minimum_travel_days + refuel_days > empire.countdown:
-        return 0
+    @lru_cache(maxsize=None)
+    def dfs(planet, day, autonomy, n_bounty):
+        nonlocal max_proba
+        if day > countdown:
+            return 0.0
+
+        if planet == falcon.arrival:
+            # Compute proba how many BH I have encountered
+            path_proba = 1 - sum(
+                [(captured_proba) * (1 - captured_proba) ** i for i in range(n_bounty)]
+            )
+            max_proba = max(max_proba, path_proba)
+            return path_proba
+
+        # Encounter a bounty hunter !
+        if day in empire.bounty_hunters and empire.bounty_hunters[day] == planet:
+            n_bounty += 1
+
+        # Two choices either I refuel in the same planet
+        dfs(planet, day + 1, start_autonomy, n_bounty)
+
+        # or explore the neighbors
+        for travel_cost, nplanet in map.get_neighbors(planet):
+            # I have enough fuel to travel to the neighbor
+            if autonomy >= travel_cost:
+                dfs(nplanet, day + travel_cost, autonomy - travel_cost, n_bounty)
+
+    dfs(falcon.departure, 0, falcon.autonomy, 0)
+    return max_proba
 
     # Check for bounty hunters in the path and compute proba
 
@@ -134,11 +172,24 @@ if __name__ == "__main__":
         prog="runner",
         description="Finds proba of success",
     )
-    parser.add_argument("millenium", help="millennium-falcon trajectory")
-    parser.add_argument("empire", help="countdown and bounty_hunters")
+    parser.add_argument(
+        "-m",
+        "--millenium",
+        help="millennium-falcon trajectory",
+        default="examples/example1/millennium-falcon.json",
+    )
+    parser.add_argument(
+        "-e",
+        "--empire",
+        help="countdown and bounty_hunters",
+        default="examples/example1/empire.json",
+    )
     args = parser.parse_args()
 
-    empire = read_empire_from_json(args.empire)
-    falcon = read_falcon_from_json(args.millenium)
+    # main(args)
 
-    compute_odds(falcon, empire)
+    empire = read_empire_from_json(args.empire)
+    falcon, map = read_falcon_from_json(args.millenium)
+
+    odds = compute_arrival_odds(falcon, empire, map)
+    print(f"FINAL ODD: {odds}")
