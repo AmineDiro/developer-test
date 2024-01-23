@@ -16,6 +16,7 @@ readme = "README.md" # Optional
 # For an analysis of this field vs pip's requirements files see:
 # https://packaging.python.org/discussions/install-requires-vs-requirements/
 dependencies = [ # Optional
+    "rich",
 ]
 
 
@@ -25,7 +26,7 @@ dev = ["pre-commit", "pytest", "ruff"]
 # The following would provide a command line executable called `sample`
 # which executes the function `main` from this package when invoked.
 [project.scripts] # Optional
-give-me-the-odds = "navigation:cli.main"
+give-me-the-odds = "navigation.cli:main"
 
 [build-system]
 # These are the assumed default build requirements from pip:

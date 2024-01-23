@@ -11,14 +11,14 @@ def read_falcon_from_json(file_path) -> Tuple[MillenniumFalcon, GalaxyMap]:
 
     db_path = os.path.join(os.path.dirname(file_path), json_data["routes_db"])
 
-    map = GalaxyMap(db_path)
+    galaxy_map = GalaxyMap(db_path)
 
     falcon = MillenniumFalcon(
         autonomy=json_data["autonomy"],
         departure=json_data["departure"],
         arrival=json_data["arrival"],
     )
-    return falcon, map
+    return falcon, galaxy_map
 
 
 def read_empire_from_json(file_path) -> Empire:

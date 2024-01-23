@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Place in document head -->
+    <link rel="stylesheet" href="starwarsintro.css" />
+
+    <!-- Place in Body where you'd like intro to appear -->
+    <div class="star-wars-intro">
+      <!-- Blue Intro Text -->
+      <p class="intro-text">A few days ago, during...</p>
+
+      <!-- All Scrolling Content Goes in here -->
+      <div class="main-content">
+        <div class="title-content">
+          <p class="content-header">EPISODES IV-VI<br />A Movie Marathon</p>
+
+          <br />
+
+          <p class="content-body">
+            After years of galactic silence, civilization is on the brink of a
+            new Star Wars release. Now, with the Force preparing to awaken, the
+            people of Earth seek solace in films of old. With nowhere to turn,
+            they gather in great numbers and watch the original trilogy without
+            rest. Three films. 6 hours. 24 minutes. Popcorn. Slushies. Total
+            elation.
+          </p>
+
+          <!-- button or link or whatever -->
+        </div>
+      </div>
+    </div>
+  </head>
+  <body>
+    <h1>Rebel Intel Analyzer</h1>
+    <form id="uploadForm">
+      <input type="file" id="jsonFileInput" accept=".json" />
+      <label for="jsonFileInput">Choose a JSON file</label>
+    </form>
+    <div id="result"></div>
+
+    <script>
+      document
+        .getElementById("jsonFileInput")
+        .addEventListener("change", handleFileSelect);
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+
+        if (file) {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            const jsonData = JSON.parse(e.target.result);
+            const odds = analyzeRebelIntel(jsonData);
+            displayResult(odds);
+          };
+
+          reader.readAsText(file);
+        }
+      }
+
+      function analyzeRebelIntel(data) {
+        // Your logic for analyzing the intercepted data and calculating the odds goes here
+        // For demonstration purposes, let's assume a random calculation
+        return Math.floor(Math.random() * 100) + 1;
+      }
+
+      function displayResult(odds) {
+        const resultElement = document.getElementById("result");
+        resultElement.innerHTML = `Odds that the Millennium Falcon reaches Endor in time: ${odds}%`;
+      }
+    </script>
+  </body>
+</html>

@@ -6,7 +6,7 @@ from navigation.models import Empire, GalaxyMap, MillenniumFalcon
 def compute_arrival_odds(
     falcon: MillenniumFalcon,
     empire: Empire,
-    map: GalaxyMap,
+    galaxy_map: GalaxyMap,
     captured_proba: float = 0.1,
 ) -> float:
     start_autonomy = falcon.autonomy
@@ -35,7 +35,7 @@ def compute_arrival_odds(
         dfs(planet, day + 1, start_autonomy, n_bounty)
 
         # or explore the neighbors
-        for travel_cost, nplanet in map.get_neighbors(planet):
+        for travel_cost, nplanet in galaxy_map.get_neighbors(planet):
             # I have enough fuel to travel to the neighbor
             if autonomy >= travel_cost:
                 dfs(nplanet, day + travel_cost, autonomy - travel_cost, n_bounty)
