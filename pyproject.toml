@@ -17,6 +17,10 @@ readme = "README.md" # Optional
 # https://packaging.python.org/discussions/install-requires-vs-requirements/
 dependencies = [ # Optional
     "rich",
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "jinja2",
 ]
 
 
