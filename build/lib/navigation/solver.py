@@ -1,11 +1,5 @@
 #!/usr/bin/env
-"""
-The command-line interface should consist of an executable that takes 2 files 
-paths as input (respectively the paths toward the `millennium-falcon.json` 
-and `empire.json` files) and prints the probability of success as 
-a number ranging from 0 to 100.
- give-me-the-odds example1/millennium-falcon.json example1/empire.json
-"""
+
 
 import argparse
 import json
@@ -167,31 +161,3 @@ def compute_arrival_odds(
     return max_proba
 
     # Check for bounty hunters in the path and compute proba
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="runner",
-        description="Finds proba of success",
-    )
-    parser.add_argument(
-        "-m",
-        "--millenium",
-        help="millennium-falcon trajectory",
-        default="examples/example1/millennium-falcon.json",
-    )
-    parser.add_argument(
-        "-e",
-        "--empire",
-        help="countdown and bounty_hunters",
-        default="examples/example1/empire.json",
-    )
-    args = parser.parse_args()
-
-    # main(args)
-
-    empire = read_empire_from_json(args.empire)
-    falcon, map = read_falcon_from_json(args.millenium)
-
-    odds = compute_arrival_odds(falcon, empire, map)
-    print(f"FINAL ODD: {odds}")
