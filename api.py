@@ -1,11 +1,10 @@
 import json
-from typing import Tuple
 
 import pydantic
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from starlette.responses import FileResponse
 
 from navigation.models import Empire
 from navigation.solver import compute_arrival_odds
@@ -21,16 +20,22 @@ settings = Settings()
 falcon, galaxy_map = start_millennium_falcon(settings.millennium_falcon_json)
 app = FastAPI()
 
-# app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 
 @app.get("/")
-async def main():
-    return FileResponse("static/index.html")
+async def main(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/health", include_in_schema=False)
+def healthcheck():
+    return {"message": "Healthy!"}
 
 
 @app.post("/compute_odds")
-async def compute_odds(file: UploadFile = File(...)):
+async def compute_odds(request: Request, file: UploadFile = File(...)):
     content = await file.read()
     try:
         empire_data = json.loads(content)
@@ -45,4 +50,7 @@ async def compute_odds(file: UploadFile = File(...)):
         )
 
     odds = compute_arrival_odds(falcon, empire, galaxy_map)
-    return {"odds": odds}
+    return templates.TemplateResponse(
+        "odds.html",
+        {"request": request, "odds": f"{odds*100:.2f}"},
+    )
