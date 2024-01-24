@@ -3,6 +3,7 @@ from typing import Tuple
 
 import pydantic
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.responses import FileResponse
 
@@ -20,9 +21,11 @@ settings = Settings()
 falcon, galaxy_map = start_millennium_falcon(settings.millennium_falcon_json)
 app = FastAPI()
 
+# app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 
 @app.get("/")
-async def read_index():
+async def main():
     return FileResponse("static/index.html")
 
 
