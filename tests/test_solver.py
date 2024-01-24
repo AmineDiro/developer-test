@@ -1,10 +1,8 @@
-import os
-
 import pytest
 
-from navigation.models import Empire, GalaxyMap, MillenniumFalcon
+from navigation.models import Empire
 from navigation.solver import compute_arrival_odds
-from navigation.utils import absolute_db_path, read_json, start_millennium_falcon
+from navigation.utils import read_json, start_millennium_falcon
 
 
 @pytest.mark.parametrize(
