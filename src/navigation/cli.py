@@ -2,8 +2,9 @@ import argparse
 
 from rich.console import Console
 
+from navigation.models import Empire, GalaxyMap, MillenniumFalcon
 from navigation.solver import compute_arrival_odds
-from navigation.utils import read_empire_from_json, read_falcon_from_json
+from navigation.utils import absolute_db_path, read_json, start_millennium_falcon
 
 console = Console()
 
@@ -23,15 +24,22 @@ def main():
     )
     args = parser.parse_args()
 
-    empire = read_empire_from_json(args.empire)
-    falcon, galaxy_map = read_falcon_from_json(args.millenium)
+    empire_data = read_json(args.empire)
+    empire = Empire(**empire_data)
+
+    # Build the galaxy map
+    falcon, galaxy_map = start_millennium_falcon(args.millenium)
 
     with console.status("[bold green]Computing odds of success..."):
         odds = compute_arrival_odds(falcon, empire, galaxy_map)
-        console.rule()
+        console.rule(
+            style="bold green" if odds > 0.5 else "bold red",
+        )
         console.print(
             f"You have a  {odds*100:.2f}% chance to stop the Empire's from destroying {falcon.arrival}.",
             style="bold green" if odds > 0.5 else "bold red",
             justify="center",
         )
-        console.rule()
+        console.rule(
+            style="bold green" if odds > 0.5 else "bold red",
+        )

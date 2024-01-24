@@ -1,21 +1,26 @@
 import os
 import sqlite3
 from collections import defaultdict
-from dataclasses import dataclass
 from typing import Any, Dict, List, Set
 
+from pydantic import BaseModel
 
-@dataclass
-class Empire:
+
+class BountyHunter(BaseModel):
+    planet: str
+    day: int
+
+
+class Empire(BaseModel):
     countdown: int
-    bounty_hunters: Dict[int, str]
+    bounty_hunters: List[BountyHunter]
 
 
-@dataclass
-class MillenniumFalcon:
+class MillenniumFalcon(BaseModel):
     autonomy: int
     departure: str
     arrival: str
+    routes_db: str
 
 
 class GalaxyMap:

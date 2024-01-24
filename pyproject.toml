@@ -21,6 +21,7 @@ dependencies = [ # Optional
     "uvicorn[standard]",
     "python-multipart",
     "jinja2",
+    "pydantic-settings",
 ]
 
 

@@ -13,6 +13,8 @@ def compute_arrival_odds(
     max_proba = 0.0
     countdown = empire.countdown
 
+    risky_days = {bh.day: bh.planet for bh in empire.bounty_hunters}
+
     @lru_cache(maxsize=128)
     def dfs(planet, day, autonomy, n_bounty):
         nonlocal max_proba
@@ -28,7 +30,7 @@ def compute_arrival_odds(
             return
 
         # Encounter a bounty hunter !
-        if day in empire.bounty_hunters and empire.bounty_hunters[day] == planet:
+        if day in risky_days and risky_days[day] == planet:
             n_bounty += 1
 
         # Two choices either I refuel in the same planet
