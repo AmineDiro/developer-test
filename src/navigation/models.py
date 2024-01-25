@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Set
 
 from pydantic import BaseModel
 
+Node = tuple[int, str]
+
 
 class BountyHunter(BaseModel):
     planet: str
@@ -26,25 +28,23 @@ class MillenniumFalcon(BaseModel):
 class GalaxyMap:
     def __init__(self, db_path: str):
         self.routes_db: sqlite3.Connection = self.connect(db_path)
-        # TODO: Define route struct
         self.all_routes: List[Any] = self.get_routes()
         self.planets: Set[str] = self.get_planets()
-        self.adj: Dict[str, List[Any]] = self.build_adj()
+        self.adj: Dict[str, List[Node]] = self.build_adj()
 
-    # TODO : handle  exceptions
-    def connect(self, db_path) -> sqlite3.Connection:
+    def connect(self, db_path: str) -> sqlite3.Connection:
         assert os.path.exists(db_path)
         return sqlite3.connect(db_path)
 
-    def get_routes(self):
+    def get_routes(self) -> List[Any]:
         return list(self.routes_db.execute("SELECT * FROM routes;"))
 
-    def get_planets(self):
+    def get_planets(self) -> Set[str]:
         return set(
             [p for p, _, _ in self.all_routes] + [p for _, p, _ in self.all_routes]
         )
 
-    def build_adj(self):
+    def build_adj(self) -> Dict[str, List[Node]]:
         adj = defaultdict(list)
 
         for src_planet, dst_planet, cost in self.all_routes:
@@ -54,5 +54,5 @@ class GalaxyMap:
 
         return adj
 
-    def get_neighbors(self, planet):
+    def get_neighbors(self, planet) -> Node:
         return self.adj[planet]

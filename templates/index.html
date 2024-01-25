@@ -7,20 +7,35 @@
     <link rel="stylesheet" href="/static/style.css" />
     <title>Star Wars JSON File Upload</title>
     <script src="/static/htmx.min.js"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/response-targets.js"></script>
   </head>
   <body>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("file")
+          .addEventListener("change", function (event) {
+            var fileName = event.target.files[0].name;
+            document.getElementById("fileLabel").innerText =
+              "Selected File: " + fileName;
+          });
+      });
+    </script>
     <div class="main"></div>
     <div>
       <h1 class="star-wars-title">Navigation system</h1>
-
-      <form id="form" hx-encoding="multipart/form-data" hx-post="/compute_odds">
+      <form
+        id="form"
+        hx-encoding="multipart/form-data"
+        hx-post="/compute_odds"
+        hx-target-5*="#errors"
+      >
         <label for="file"
           >Hurry up! Upload the empire's plan so we can save the galaxy.
         </label>
-        <input type="file" name="file" />
+        <input type="file" name="file" style="color: white" />
         <button type="submit">Upload</button>
-      </form>
-
+        <div id="errors"></div>
       </form>
     </div>
   </body>

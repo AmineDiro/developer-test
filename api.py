@@ -41,16 +41,27 @@ async def compute_odds(request: Request, file: UploadFile = File(...)):
         empire_data = json.loads(content)
         empire = Empire(**empire_data)
 
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Please submit a valid JSON file.")
+        odds = compute_arrival_odds(falcon, empire, galaxy_map)
+        return templates.TemplateResponse(
+            "odds.html",
+            {"request": request, "odds": f"{odds*100:.2f}"},
+        )
+
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return templates.TemplateResponse(
+            "error.html",
+            context={"request": request, "error": "Upload a valid JSON file."},
+            status_code=400,
+        )
+
     except pydantic.ValidationError:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "Are you sure this is the Empire's plan?"},
+            status_code=400,
+        )
+    else:
         raise HTTPException(
             status_code=400,
             detail="We don't have time. Please give us the Empire's plan.",
         )
-
-    odds = compute_arrival_odds(falcon, empire, galaxy_map)
-    return templates.TemplateResponse(
-        "odds.html",
-        {"request": request, "odds": f"{odds*100:.2f}"},
-    )
