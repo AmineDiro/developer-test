@@ -1,236 +1,96 @@
-# Developer Technical Test
+# Implementation details
 
-## What are the odds?
+## Computing odds:
 
-The Death Star - the Empire's ultimate weapon - is almost operational and is currently approaching the Endor planet. The countdown has started.
+The problem in hands boils down to finding the path that maximizes the probability of getting to our destination before the countdown limit. We can model the connection between planets as a **weighted graph** the weight of each edge represents the distance (in days) to do a Hyperspace jump.
+My first idea was to use a shortest-path algorithm like Djikstra on this graph, the sp algorithm would compute the shortest distance between the start and the destination. Now if we subtract the total days from our autonomy, we would have the minimum number of refuels needed to arrive at the destination. Each refuel costs 1 day, so we can add it to the total and see if we make it before the countdown. If we can't make it in time to save the empire we can be sure that the odds of success are 0 because there is no faster way to get there!
 
-Han Solo, Chewbacca, Leia and C3PO are currently on Tatooine boarding on the Millennium Falcon. They must reach Endor to join the Rebel fleet and destroy the Death Star before it annihilates the planet.
+All fine and dandy if not for bounty hunters! If I computed a probability of success for the shortest path while taking into account the bounty hunters we could cross on each planet along the way, there is no guarantee that it would be maximal. This means that there is a _longer_ path that we could take to make it in time and have a bigger success rate. At this point, I had two ideas:
 
-The Empire has hired the best bounty hunters in the galaxy to capture the Millennium Falcon and stop it from joining the rebel fleet...
+1. Building a different graph that would correctly model the problem ie some way to reflect the probability of success to then run a greedy approach.
+2. Computing the k-shortest path and then filtering to those that respect the limit countdown. Then compute the probability of success of each path and return the maximal
 
-### Routes
-The Millennium Falcon has an onboard map containing the list of all planets in the galaxy, and the number of days it takes to go from one to the other using an Hyperspace jump.
+Looking at the 2nd solution, the structure of the problem became apparent. We can see that greedy approaches can't work. The good news is that the problem has an optimal substructure: the path that maximizes the probability of success contains other paths that maximize the probability of success within it. We can use dynamic programming to solve the problem. The solver does a (recursive) depth first on the graph starting from the departure. On each planet, we either stay and refuel or move on the neighbors if we have enough fuel. If we exceed the time limit we return 0.0. If we arrive at the arrival planet we update the maximum probability. I used memoization on the `dfs` function to avoid recomputing each path.
 
-### Autonomy
-However, the Millennium Falcon is not the newest ship of its kind and it has a limited autonomy. If it's lacking fuel to achieve his next Hyperspace jump, it first must stop for 1 day on the nearby planet to refuel.
-For example, if its autonomy is 6 days, and it has already done a 4 days Hyperspace jump. It can reach another planet that is 1 or 2 days away from its current position. To reach planets that are 3 days or more away, it must refuel first.
+## Architecture
 
-### Bounty Hunters
-The rebel command center has also intercepted a communication and the rebels know the various locations and days where Bounty Hunter have planned to hunt the Millennium Falcon.
-If the Millennium Falcon arrives on a planet on a day where Bounty Hunter are expected to be on this planet, the crew has 10% chance of being captured. Likewise, if the Millennium Falcon refuels on a planet on a day where Bounty Hunter are expected to be on this planet, the crew has 10% chance of being captured.
+- The input `json` files are first validated using `pydantic` to models we can reuse in both the CLI and the Web.
+- Build a graph data structure from the sqlite database: `GalaxyMap`
+- The core logic for computing odds is encapsulated in the `solver` module.
 
-Hint: To avoid the Bounty Hunters, the Millennium Falcon can land on a planet with no bounty hunters (even if its tank is full) and wait for 1 or more days before pursuing its route.
+**CLI**:
 
-The mathematical formula to compute the total probability of being captured is:
+- Used std `argparse` to parse arguments and `rich` for colored output.
 
-$$ {1 \over 10} + { 9 \over 10^2 } + { 9^2 \over 10^3 } + ... + { 9^k \over 10^{k+1} } $$
+**Backend**
 
-where k is the number of times the Bounty Hunter tried to capture the Millennium Falcon.
+- Used `fastAPI` framework.
+- Used the builtin `sqlite3` Python lib.
 
-For example, the probability to get captured is:
-   - if the Millennium Falcon travels via 1 planet with bounty hunters:
-  
-      $$ {1 \over 10} = 0.1 $$
-   
-   - if the Millennium Falcon travels via 1 planet with bounty hunters and refuels on this planet:
+**Frontend**
 
-      $$ {1 \over 10} + { 9 \over 10^2 } = 0.19 $$
+- Used Jinja2 templates and with FastAPI
+- I also used `HTMX` as an efficient way to build dynamic web applications.
+- Custom Star Wars font of course 😄
 
-   - if the Millennium Falcon travels via 2 planets with bounty hunters:
+# Running the solution
 
-      $$ {1 \over 10} + { 9 \over 10^2 } = 0.19 $$
+1. Clone this repository and `cd` into it
+   Create a Python virtual env. For example, you can use `venv` and activate it
 
-   - if the Millennium Falcon travels via 3 planets with bounty hunters:
+   ```bash
+   python -m venv env
+   source env/bin/activate
+   ```
 
-      $$ {1 \over 10} + { 9 \over 10^2 } + { 9^2 \over 10^3 } = 0.271 $$
+2. Install the package. To run tests you should also install the dev dependencies
 
+   ```
+   pip install .
+   # dev dependancies
+   pip install -e ".[dev]"
+   ```
 
-## The mission
+## Running CLI
 
-Your mission is to create a web application to compute and display the odds that the Millennium Falcon reaches Endor in time and saves the galaxy.
+The installed package defines a command line executable `give-me-the-odds`, you can run:
 
-![Never tell me the odds](resources/never-tell-me-the-odds.gif)
+```bash
+give-me-the-odds examples/example2/millennium-falcon.json examples/example2/empire.json
 
-Your web application will be composed of a backend (the Millennium Falcon onboard computer), a front-end (C3PO) and a CLI (command-line interface aka R2D2).
-
-### Back-end
-
-When it starts, the back-end service will read a JSON configuration file containing the autonomy, the path towards an SQLite database file containing all the routes, the name of the planet where the Millennium Falcon is currently parked (Tatooine) and the name of the planet that the empire wants to destroy (Endor).
-
-**millennium-falcon.json**
-```json
-{
-  "autonomy": 6,
-  "departure": "Tatooine",
-  "arrival": "Endor",
-  "routes_db": "universe.db"
-}
-```
-   - autonomy (integer): autonomy of the Millennium Falcon in days.
-   - departure (string): Planet where the Millennium Falcon is on day 0.
-   - arrival (string): Planet where the Millennium Falcon must be at or before countdown.
-   - routes_db (string): Path toward a SQLite database file containing the routes. The path can be either absolute or relative to the location of the `millennium-falcon.json` file itself.
-
-The SQLite database will contain a table named ROUTES. Each row in the table represents a space route. Routes can be travelled **in any direction** (from origin to destination or vice-versa).
-
-   - ORIGIN (TEXT): Name of the origin planet. Cannot be null or empty.
-   - DESTINATION (TEXT): Name of the destination planet. Cannot be null or empty.
-   - TRAVEL_TIME (INTEGER): Number days needed to travel from one planet to the other. Must be strictly positive.
-
-| ORIGIN   | DESTINATION | TRAVEL_TIME |
-|----------|-------------|-------------|
-| Tatooine | Dagobah     | 4           |
-| Dagobah  | Endor       | 1           |
-
-### Front-end
-
-The front-end should consists of a single-page application offering users a way to upload a JSON file containing the data intercepted by the rebels about the plans of the Empire and displaying the odds (as a percentage) that the Millennium Falcon reaches Endor in time and saves the galaxy.
-
-**empire.json**
-```json
-{
-  "countdown": 6, 
-  "bounty_hunters": [
-    {"planet": "Tatooine", "day": 4 },
-    {"planet": "Dagobah", "day": 5 }
-  ]
-}
+You have a  81.00% chance to stop the Empire's from destroying Endor.
 ```
 
-   - countdown (integer): number of days before the Death Star annihilates Endor
-   - bounty_hunters (list): list of all locations where Bounty Hunter are scheduled to be present.
-      - planet (string): Name of the planet. It cannot be null or empty.
-      - day (integer): Day the bounty hunters are on the planet. 0 represents the first day of the mission, i.e. today.
+## Running the Web version
 
+1. Before starting the API, modify the `.env` file to have the correct
 
-The web page will display the probability of success as a number ranging from 0 to 100%:
-- `0%` if the Millennium Falcon cannot reach Endor before the Death Star annihilates Endor
-- `x% (0 < x < 100)` if the Millennium Falcon can reach Endor before the Death Star annihilates Endor but might be captured by bounty hunters.
-- `100%` if the Millennium Falcon can reach Endor before the Death Star annihilates Endor without crossing a planet with bounty hunters on it.
+   ```env
+   MILLENNIUM_FALCON_JSON=examples/example1/millennium-falcon.json
+   ```
 
-### CLI
+2. Start the front and back-end:
+   ```env
+    python -m uvicorn api:app --port 8000 --host 0.0.0.0
+   ```
+3. Navigate to `http://localhost:8000` to save the galaxy!
 
-The command-line interface should consist of an executable that takes 2 files paths as input (respectively the paths toward the `millennium-falcon.json` and `empire.json` files) and prints the probability of success as a number ranging from 0 to 100.
-```sh
-$ give-me-the-odds example1/millennium-falcon.json example1/empire.json
-81
+## Running tests
+
+To run the tests you to first install the `dev` dependencies and then run:
+
+```bash
+developer-test  🍣 solution 📝 ×4🛤️  ×2via 🐍 v3.10.8 (env)
+❯ pytest tests -s -v
+================================== test session starts ==================================
+platform darwin -- Python 3.10.8, pytest-7.4.4, pluggy-1.3.0 -- /Users/aminedirhoussi/Documents/coding/developer-test/env/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/aminedirhoussi/Documents/coding/developer-test
+plugins: anyio-4.2.0
+collected 4 items
+
+tests/test_solver.py::test_solver[examples/example1/millennium-falcon.json-examples/example1/empire.json-examples/example1/answer.json] PASSED
+tests/test_solver.py::test_solver[examples/example2/millennium-falcon.json-examples/example2/empire.json-examples/example2/answer.json] PASSED
+tests/test_solver.py::test_solver[examples/example3/millennium-falcon.json-examples/example3/empire.json-examples/example3/answer.json] PASSED
+tests/test_solver.py::test_solver[examples/example4/millennium-falcon.json-examples/example4/empire.json-examples/example4/answer.json] PASSED
 ```
-
-## Examples
-
-### Example 1
-**[universe.db](examples/example1/universe.db?raw=true)** (click to download)
-| ORIGIN   | DESTINATION | TRAVEL_TIME |
-|----------|-------------|-------------|
-| Tatooine | Dagobah     | 6           |
-| Dagobah  | Endor       | 4           |
-| Dagobah  | Hoth        | 1           |
-| Hoth     | Endor       | 1           |
-| Tatooine | Hoth        | 6           |
-
-**[millennium-falcon.json](examples/example1/millennium-falcon.json?raw=true)** (click to download)
-```
-{
-  "autonomy": 6,
-  "departure": "Tatooine",
-  "arrival": "Endor",
-  "routes_db": "universe.db"
-}
-```
-**[empire.json](examples/example1/empire.json?raw=true)** (click to download)
-```
-{
-  "countdown": 7, 
-  "bounty_hunters": [
-    {"planet": "Hoth", "day": 6 }, 
-    {"planet": "Hoth", "day": 7 },
-    {"planet": "Hoth", "day": 8 }
-  ]
-}
-```
-
-The application should display 0% as The Millennium Falcon cannot go from Tatooine to Endor in 7 days or less (the Millennium Falcon must refuel for 1 day on either Dagobah or Hoth).
-
-### Example 2
-**[universe.db](examples/example2/universe.db?raw=true)** same as above
-
-**[millennium-falcon.json](examples/example2/millennium-falcon.json?raw=true)**: same as above
-
-**[empire.json](examples/example2/empire.json?raw=true)** (click to download)
-```
-{
-  "countdown": 8, 
-  "bounty_hunters": [
-    {"planet": "Hoth", "day": 6 }, 
-    {"planet": "Hoth", "day": 7 },
-    {"planet": "Hoth", "day": 8 }
-  ]
-}
-```
-
-The application should display 81% as The Millennium Falcon can go from Tatooine to Endor in 8 days with the following plan:
-- Travel from Tatooine to Hoth, with 10% chance of being captured on day 6 on Hoth.
-- Refuel on Hoth with 10% chance of being captured on day 7 on Hoth.
-- Travel from Hoth to Endor
-
-### Example 3
-**[universe.db](examples/example3/universe.db?raw=true)** same as above
-
-**[millennium-falcon.json](examples/example3/millennium-falcon.json?raw=true)**: same as above
-
-**[empire.json](examples/example3/empire.json?raw=true)**
-```
-{
-  "countdown": 9, 
-  "bounty_hunters": [
-    {"planet": "Hoth", "day": 6 }, 
-    {"planet": "Hoth", "day": 7 },
-    {"planet": "Hoth", "day": 8 }
-  ]
-}
-```
-
-The application should display 90% as The Millennium Falcon can go from Tatooine to Endor in 9 days with the following plan:
-- Travel from Tatooine to Dagobath.
-- Refuel on Dagobah
-- Travel from Dagobah to Hoth, with 10% chance of being captured on day 8 on Hoth.
-- Travel from Hoth to Endor
-
-### Example 4
-**[universe.db](examples/example4/universe.db?raw=true)** same as above
-
-**[millennium-falcon.json](examples/example4/millennium-falcon.json?raw=true)**: same as above
-
-**[empire.json](examples/example4/empire.json?raw=true)**
-```
-{
-  "countdown": 10, 
-  "bounty_hunters": [
-    {"planet": "Hoth", "day": 6 }, 
-    {"planet": "Hoth", "day": 7 },
-    {"planet": "Hoth", "day": 8 }
-  ]
-}
-```
-
-The application should display 100% as The Millennium Falcon can go from Tatooine to Endor in 10 days and avoid Bounty Hunters with the following plans:
-- Travel from Tatooine to Dagobah,  refuel on Dagobah
-- Wait for 1 day on Dagobah
-- Travel from Dagobah to Hoth
-- Travel from Hoth to Endor
-
-or
-
-- Wait for 1 day on Tatooine
-- Travel from Tatooine to Dagobah, refuel on Dagobah
-- Travel from Dagobah to Hoth
-- Travel from Hoth to Endor
-
-
-## Final note
-There is absolutely no constraint on the technological stack that you might choose to achieve this,
-either in the backend or frontend. Choose whichever you think is best suited for the task.
-
-We are looking for high quality code: typically something that you would put into production and be proud of.
-
-Have fun!
